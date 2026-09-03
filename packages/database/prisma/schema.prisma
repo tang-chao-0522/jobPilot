@@ -1,0 +1,346 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           BigInt             @id @default(autoincrement())
+  email        String             @unique @db.VarChar(255)
+  passwordHash String             @map("password_hash") @db.VarChar(255)
+  nickname     String             @db.VarChar(100)
+  avatarUrl    String?            @map("avatar_url") @db.VarChar(500)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  resumes      Resume[]
+  jobs         Job[]
+  applications Application[]
+  plans        PreparationPlan[]
+  tasks        PreparationTask[]
+  interviews   InterviewSession[]
+  threads      AgentThread[]
+  runs         AgentRun[]
+
+  @@map("users")
+}
+
+model Resume {
+  id          BigInt             @id @default(autoincrement())
+  userId      BigInt             @map("user_id")
+  name        String             @db.VarChar(255)
+  fileUrl     String             @map("file_url") @db.VarChar(500)
+  fileType    String             @map("file_type") @db.VarChar(20)
+  rawText     String             @map("raw_text") @db.LongText
+  summary     String?            @db.Text
+  parseStatus String             @default("PENDING") @map("parse_status") @db.VarChar(30)
+  isPrimary   Boolean            @default(false) @map("is_primary")
+  profile     Json?
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills      ResumeSkill[]
+  projects    ResumeProject[]
+  experiences ResumeExperience[]
+  educations  ResumeEducation[]
+  matches     MatchAnalysis[]
+  interviews  InterviewSession[]
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model ResumeSkill {
+  id        BigInt   @id @default(autoincrement())
+  resumeId  BigInt   @map("resume_id")
+  name      String   @db.VarChar(100)
+  category  String   @db.VarChar(100)
+  level     String   @db.VarChar(30)
+  years     Decimal? @db.Decimal(4, 1)
+  source    String   @default("AI") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at")
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, name])
+  @@index([resumeId])
+  @@map("resume_skills")
+}
+
+model ResumeProject {
+  id          BigInt    @id @default(autoincrement())
+  resumeId    BigInt    @map("resume_id")
+  name        String    @db.VarChar(255)
+  role        String    @db.VarChar(100)
+  description String    @db.Text
+  techStack   Json      @map("tech_stack")
+  highlights  Json
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  resume      Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@map("resume_projects")
+}
+
+model ResumeExperience {
+  id          BigInt    @id @default(autoincrement())
+  resumeId    BigInt    @map("resume_id")
+  company     String    @db.VarChar(255)
+  position    String    @db.VarChar(255)
+  description String    @db.Text
+  techStack   Json      @map("tech_stack")
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  resume      Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@map("resume_experiences")
+}
+
+model ResumeEducation {
+  id          BigInt    @id @default(autoincrement())
+  resumeId    BigInt    @map("resume_id")
+  school      String    @db.VarChar(255)
+  major       String    @db.VarChar(255)
+  degree      String    @db.VarChar(100)
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resume      Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@map("resume_educations")
+}
+
+model Job {
+  id               BigInt             @id @default(autoincrement())
+  userId           BigInt             @map("user_id")
+  company          String             @db.VarChar(255)
+  title            String             @db.VarChar(255)
+  city             String             @db.VarChar(100)
+  salaryMin        Int?               @map("salary_min")
+  salaryMax        Int?               @map("salary_max")
+  source           String?            @db.VarChar(100)
+  sourceUrl        String?            @map("source_url") @db.VarChar(1000)
+  description      String             @db.LongText
+  notes            String?            @db.Text
+  parsedSummary    String?            @map("parsed_summary") @db.Text
+  responsibilities Json?
+  requirements     Json?
+  keywords         Json?
+  analysisStatus   String             @default("PENDING") @map("analysis_status") @db.VarChar(30)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills           JobSkill[]
+  matches          MatchAnalysis[]
+  application      Application?
+  plans            PreparationPlan[]
+  interviews       InterviewSession[]
+
+  @@index([userId, company])
+  @@map("jobs")
+}
+
+model JobSkill {
+  id        BigInt   @id @default(autoincrement())
+  jobId     BigInt   @map("job_id")
+  name      String   @db.VarChar(100)
+  type      String   @db.VarChar(30)
+  weight    Decimal  @default(1) @db.Decimal(5, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("job_skills")
+}
+
+model Application {
+  id              BigInt    @id @default(autoincrement())
+  userId          BigInt    @map("user_id")
+  jobId           BigInt    @unique @map("job_id")
+  status          String    @default("WISHLIST") @db.VarChar(50)
+  appliedAt       DateTime? @map("applied_at")
+  nextInterviewAt DateTime? @map("next_interview_at")
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job             Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("applications")
+}
+
+model MatchAnalysis {
+  id              BigInt   @id @default(autoincrement())
+  userId          BigInt   @map("user_id")
+  resumeId        BigInt   @map("resume_id")
+  jobId           BigInt   @map("job_id")
+  totalScore      Int      @map("total_score")
+  skillScore      Int      @map("skill_score")
+  projectScore    Int      @map("project_score")
+  experienceScore Int      @map("experience_score")
+  educationScore  Int      @map("education_score")
+  keywordScore    Int      @map("keyword_score")
+  matchedSkills   Json     @map("matched_skills")
+  missingSkills   Json     @map("missing_skills")
+  projectMatches  Json     @map("project_matches")
+  risks           Json
+  suggestions     Json
+  model           String   @db.VarChar(100)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  resume          Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  job             Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([userId, jobId])
+  @@map("match_analyses")
+}
+
+model PreparationPlan {
+  id        BigInt            @id @default(autoincrement())
+  userId    BigInt            @map("user_id")
+  jobId     BigInt            @map("job_id")
+  title     String            @db.VarChar(255)
+  startDate DateTime          @map("start_date") @db.Date
+  endDate   DateTime          @map("end_date") @db.Date
+  status    String            @default("ACTIVE") @db.VarChar(30)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  tasks     PreparationTask[]
+
+  @@map("preparation_plans")
+}
+
+model PreparationTask {
+  id               BigInt          @id @default(autoincrement())
+  planId           BigInt          @map("plan_id")
+  userId           BigInt          @map("user_id")
+  title            String          @db.VarChar(255)
+  description      String          @db.Text
+  category         String          @db.VarChar(100)
+  priority         String          @db.VarChar(20)
+  estimatedMinutes Int             @map("estimated_minutes")
+  scheduledDate    DateTime        @map("scheduled_date") @db.Date
+  completed        Boolean         @default(false)
+  completedAt      DateTime?       @map("completed_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  plan             PreparationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledDate])
+  @@map("preparation_tasks")
+}
+
+model InterviewSession {
+  id          BigInt              @id @default(autoincrement())
+  userId      BigInt              @map("user_id")
+  jobId       BigInt              @map("job_id")
+  resumeId    BigInt              @map("resume_id")
+  status      String              @default("ACTIVE") @db.VarChar(30)
+  totalScore  Decimal?            @map("total_score") @db.Decimal(5, 2)
+  summary     String?             @db.Text
+  strengths   Json?
+  weaknesses  Json?
+  suggestions Json?
+  startedAt   DateTime            @default(now()) @map("started_at")
+  completedAt DateTime?           @map("completed_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job         Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resume      Resume              @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  questions   InterviewQuestion[]
+
+  @@map("interview_sessions")
+}
+
+model InterviewQuestion {
+  id             BigInt           @id @default(autoincrement())
+  sessionId      BigInt           @map("session_id")
+  questionIndex  Int              @map("question_index")
+  category       String           @db.VarChar(100)
+  question       String           @db.Text
+  userAnswer     String?          @map("user_answer") @db.LongText
+  aiFeedback     String?          @map("ai_feedback") @db.Text
+  score          Decimal?         @db.Decimal(5, 2)
+  expectedPoints Json?            @map("expected_points")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  session        InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("interview_questions")
+}
+
+model AgentThread {
+  id        BigInt         @id @default(autoincrement())
+  userId    BigInt         @map("user_id")
+  title     String         @db.VarChar(255)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AgentMessage[]
+  runs      AgentRun[]
+
+  @@map("agent_threads")
+}
+
+model AgentMessage {
+  id        BigInt      @id @default(autoincrement())
+  threadId  BigInt      @map("thread_id")
+  role      String      @db.VarChar(30)
+  content   String      @db.LongText
+  metadata  Json?
+  createdAt DateTime    @default(now()) @map("created_at")
+  thread    AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("agent_messages")
+}
+
+model AgentRun {
+  id           BigInt          @id @default(autoincrement())
+  threadId     BigInt          @map("thread_id")
+  userId       BigInt          @map("user_id")
+  status       String          @default("RUNNING") @db.VarChar(30)
+  input        String          @db.LongText
+  output       String?         @db.LongText
+  model        String          @db.VarChar(100)
+  turnCount    Int             @default(0) @map("turn_count")
+  inputTokens  Int             @default(0) @map("input_tokens")
+  outputTokens Int             @default(0) @map("output_tokens")
+  latencyMs    Int             @default(0) @map("latency_ms")
+  errorMessage String?         @map("error_message") @db.Text
+  startedAt    DateTime        @default(now()) @map("started_at")
+  completedAt  DateTime?       @map("completed_at")
+  thread       AgentThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  toolCalls    AgentToolCall[]
+
+  @@map("agent_runs")
+}
+
+model AgentToolCall {
+  id           BigInt    @id @default(autoincrement())
+  runId        BigInt    @map("run_id")
+  turnIndex    Int       @map("turn_index")
+  toolName     String    @map("tool_name") @db.VarChar(100)
+  arguments    Json
+  result       Json?
+  status       String    @db.VarChar(30)
+  latencyMs    Int       @default(0) @map("latency_ms")
+  errorMessage String?   @map("error_message") @db.Text
+  startedAt    DateTime  @default(now()) @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  run          AgentRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, turnIndex])
+  @@map("agent_tool_calls")
+}

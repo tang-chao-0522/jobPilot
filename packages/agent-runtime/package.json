@@ -1,0 +1,19 @@
+{
+  "name": "@jobpilot/agent-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openai": "^5.8.2",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@jobpilot/tsconfig": "workspace:*",
+    "typescript": "^5.8.3"
+  }
+}
