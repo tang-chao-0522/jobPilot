@@ -34,29 +34,42 @@ export class OpenAIModelAdapter implements ModelAdapter {
         messages: request.messages.map(toProviderMessage) as never,
         tools: request.tools as never,
         tool_choice: 'auto',
-        stream: false,
+        stream: true,
+        stream_options: { include_usage: true },
       },
       { signal: request.signal },
     );
-    const message = response.choices[0]?.message;
-    if (message?.content) yield { type: 'text_delta', delta: message.content };
-    if (message?.tool_calls?.length) {
+
+    const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+    for await (const chunk of response) {
+      const delta = chunk.choices[0]?.delta;
+      if (delta?.content) yield { type: 'text_delta', delta: delta.content };
+      for (const toolCall of delta?.tool_calls ?? []) {
+        const current = toolCalls.get(toolCall.index) ?? { id: '', name: '', arguments: '' };
+        if (toolCall.id) current.id = toolCall.id;
+        if (toolCall.function?.name) current.name += toolCall.function.name;
+        if (toolCall.function?.arguments) current.arguments += toolCall.function.arguments;
+        toolCalls.set(toolCall.index, current);
+      }
+      if (chunk.usage) {
+        yield {
+          type: 'usage',
+          inputTokens: chunk.usage.prompt_tokens,
+          outputTokens: chunk.usage.completion_tokens,
+        };
+      }
+    }
+
+    if (toolCalls.size) {
       yield {
         type: 'tool_calls',
-        calls: message.tool_calls
-          .filter((call) => call.type === 'function')
-          .map((call) => ({
+        calls: [...toolCalls.entries()]
+          .sort(([left], [right]) => left - right)
+          .map(([, call]) => ({
             id: call.id,
-            name: call.function.name,
-            arguments: JSON.parse(call.function.arguments),
+            name: call.name,
+            arguments: JSON.parse(call.arguments || '{}'),
           })),
-      };
-    }
-    if (response.usage) {
-      yield {
-        type: 'usage',
-        inputTokens: response.usage.prompt_tokens,
-        outputTokens: response.usage.completion_tokens,
       };
     }
     yield { type: 'done' };

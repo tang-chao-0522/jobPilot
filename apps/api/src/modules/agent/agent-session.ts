@@ -40,7 +40,9 @@ export class JobPilotAgentSession {
       runId,
       currentDate: new Date(),
     });
-    agent.subscribe((event) => this.sse.publish(runId, event));
+    agent.subscribe((event) => {
+      if (event.type !== 'agent_end') this.sse.publish(runId, event);
+    });
     agent.subscribe(this.trace.listener(run.id));
     this.activeAgents.set(runId, agent);
     await this.runs.start(run.id);
@@ -72,14 +74,34 @@ export class JobPilotAgentSession {
         outputTokens: result.usage.outputTokens,
         latencyMs: Date.now() - startedAt,
       });
+      this.sse.publish(runId.toString(), { type: 'agent_end', status: 'completed' });
     } catch (error) {
-      if (error instanceof AgentAbortedError) await this.runs.cancel(runId, Date.now() - startedAt);
-      else
-        await this.runs.fail(
-          runId,
-          error instanceof Error ? error.message : 'Agent 执行失败',
-          Date.now() - startedAt,
-        );
+      const state = agent.getState();
+      const reversedUserIndex = [...state.messages]
+        .reverse()
+        .findIndex((item) => item.role === 'user');
+      const lastUserIndex =
+        reversedUserIndex === -1 ? -1 : state.messages.length - reversedUserIndex - 1;
+      const partialMessage =
+        state.streamingMessage?.content ||
+        state.messages
+          .slice(lastUserIndex + 1)
+          .reverse()
+          .find((item) => item.role === 'assistant')?.content;
+      if (partialMessage) await this.messages.create(threadId, 'ASSISTANT', partialMessage);
+
+      if (error instanceof AgentAbortedError) {
+        await this.runs.cancel(runId, Date.now() - startedAt);
+        this.sse.publish(runId.toString(), { type: 'agent_end', status: 'cancelled' });
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Agent 执行失败';
+        await this.runs.fail(runId, errorMessage, Date.now() - startedAt);
+        this.sse.publish(runId.toString(), {
+          type: 'agent_end',
+          status: 'failed',
+          error: errorMessage,
+        });
+      }
     } finally {
       this.activeAgents.delete(runId.toString());
       this.sse.close(runId.toString());
