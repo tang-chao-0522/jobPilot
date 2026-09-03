@@ -34,6 +34,7 @@ import {
   ChevronRight,
   Clock,
   Building2,
+  X,
 } from 'lucide-react';
 const labels: any = {
   WISHLIST: '收藏',
@@ -669,7 +670,12 @@ export function Agent() {
     [input, setInput] = useState('');
   const { data: threads = [] } = useAgentThreadsQuery();
   const { data: messages = [] } = useAgentMessagesQuery(thread);
-  const { streamedText: stream, connect } = useAgentEventStream(() => {
+  const {
+    streamedText: stream,
+    isStreaming,
+    connect,
+    abort,
+  } = useAgentEventStream(() => {
     void qc.invalidateQueries({ queryKey: ['messages', thread] });
   });
   const ensure = async () => {
@@ -750,8 +756,8 @@ export function Agent() {
                   }
                 }}
               />
-              <button className="btn-primary px-4" onClick={send}>
-                <Send size={18} />
+              <button className="btn-primary px-4" onClick={isStreaming ? abort : send}>
+                {isStreaming ? <X size={18} /> : <Send size={18} />}
               </button>
             </div>
           </div>

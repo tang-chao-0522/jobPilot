@@ -25,7 +25,25 @@ Web：http://localhost:5173；API：http://localhost:3000/api/v1。
 
 ## AI 配置
 
-在 `.env` 中设置 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和 `OPENAI_MODEL`。模型适配器兼容 OpenAI API 协议；未配置密钥时，简历/JD/匹配会使用本地启发式分析，Agent 会返回配置提示。
+数据库和模型配置全部由 `.env` 注入，并在 API 启动时通过 Zod 校验：
+
+```env
+DB_HOST="localhost"
+DB_PORT=3306
+DB_USER="root"
+DB_PASSWORD="password"
+DB_NAME="jobpilot"
+DATABASE_URL="mysql://root:password@localhost:3306/jobpilot"
+
+MODEL_PROVIDER="openai-compatible"
+MODEL_API_KEY=""
+MODEL_BASE_URL="https://api.openai.com/v1"
+MODEL_NAME="gpt-4o-mini"
+AGENT_MAX_TURNS=8
+AGENT_MAX_TOOL_CALLS=12
+```
+
+模型适配器兼容 OpenAI API 协议；未配置密钥时，简历/JD/匹配会使用本地启发式分析，Agent 会返回配置提示。
 
 ## 工程检查
 

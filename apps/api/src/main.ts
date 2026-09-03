@@ -1,13 +1,14 @@
-import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { map } from 'rxjs';
+import { getEnvironment } from './config/environment';
 async function bootstrap() {
+  const environment = getEnvironment();
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api/v1');
-  app.enableCors({ origin: process.env.WEB_ORIGIN || 'http://localhost:5173', credentials: true });
+  app.enableCors({ origin: environment.WEB_ORIGIN, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors({
     intercept(_c: any, next: any) {
@@ -22,7 +23,7 @@ async function bootstrap() {
         );
     },
   } as any);
-  await app.listen(Number(process.env.PORT) || 3000);
+  await app.listen(environment.PORT);
   console.log('JobPilot API: http://localhost:3000/api/v1');
 }
 bootstrap();

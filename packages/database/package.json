@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "main": "./dist/client.js",
-  "types": "./dist/client.d.ts",
+  "types": "./src/client.ts",
   "scripts": {
     "build": "prisma generate && tsc",
     "typecheck": "tsc --noEmit",
