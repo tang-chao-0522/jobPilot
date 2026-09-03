@@ -25,19 +25,21 @@ import { join, extname } from 'path';
 import { randomUUID } from 'crypto';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
+import { getModelConfig } from './config/model.config';
 const json = (x: any) => x as any;
 const arr = (x: any) => (Array.isArray(x) ? x : []);
 const date = (x?: string) => (x ? new Date(x) : undefined);
 @Injectable()
 export class BusinessService {
   private async structured<T>(schema: any, name: string, prompt: string, fallback: T): Promise<T> {
-    if (!process.env.OPENAI_API_KEY) return fallback;
+    const modelConfig = getModelConfig();
+    if (!modelConfig.apiKey) return fallback;
     const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      baseURL: process.env.OPENAI_BASE_URL,
+      apiKey: modelConfig.apiKey,
+      baseURL: modelConfig.baseUrl,
     });
     const r = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      model: modelConfig.model,
       messages: [
         { role: 'system', content: '只输出符合要求的 JSON，不要 Markdown。' },
         { role: 'user', content: prompt },
@@ -243,9 +245,7 @@ export class BusinessService {
         projectMatches: json(p.projectMatches),
         risks: json(p.risks),
         suggestions: json(p.suggestions),
-        model: process.env.OPENAI_API_KEY
-          ? process.env.OPENAI_MODEL || 'gpt-4o-mini'
-          : 'local-heuristic',
+        model: getModelConfig().apiKey ? getModelConfig().model : 'local-heuristic',
       },
     });
   }
