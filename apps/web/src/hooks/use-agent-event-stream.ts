@@ -6,9 +6,10 @@ interface AgentEvent {
   delta?: string;
   toolName?: string;
   status?: 'completed' | 'failed' | 'cancelled';
+  error?: string;
 }
 
-export function useAgentEventStream(onSettled: () => void) {
+export function useAgentEventStream(onSettled: () => void | Promise<void>) {
   const [streamedText, setStreamedText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const sourceRef = useRef<EventSource | null>(null);
@@ -28,7 +29,7 @@ export function useAgentEventStream(onSettled: () => void) {
       sourceRef.current = source;
       let accumulated = '';
 
-      source.onmessage = (event) => {
+      source.onmessage = async (event) => {
         const payload = JSON.parse(event.data) as AgentEvent;
         if (payload.type === 'message_delta') {
           accumulated += payload.delta || '';
@@ -40,8 +41,12 @@ export function useAgentEventStream(onSettled: () => void) {
           sourceRef.current = null;
           runIdRef.current = undefined;
           setIsStreaming(false);
-          setStreamedText('');
-          onSettled();
+          await onSettled();
+          if (payload.status === 'failed') {
+            setStreamedText(`执行失败：${payload.error || '请稍后重试'}`);
+          } else {
+            setStreamedText('');
+          }
         }
       };
     },

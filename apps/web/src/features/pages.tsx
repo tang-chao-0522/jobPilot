@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
 import { api } from '../api';
+import { AgentConversation } from '../components/agent-conversation';
 import { Logo } from '../components/logo';
 import { AnalysisList, EmptyState, PageHeader } from '../components/page-elements';
 import { useAgentEventStream } from '../hooks/use-agent-event-stream';
@@ -22,7 +23,6 @@ import {
   FileText,
   BriefcaseBusiness,
   CalendarCheck2,
-  Bot,
   Plus,
   Search,
   MapPin,
@@ -675,8 +675,8 @@ export function Agent() {
     isStreaming,
     connect,
     abort,
-  } = useAgentEventStream(() => {
-    void qc.invalidateQueries({ queryKey: ['messages', thread] });
+  } = useAgentEventStream(async () => {
+    await qc.invalidateQueries({ queryKey: ['messages', thread] });
   });
   const ensure = async () => {
     if (thread) return thread;
@@ -714,34 +714,8 @@ export function Agent() {
             ))}
           </div>
         </aside>
-        <div className="flex flex-col min-w-0">
-          <div className="flex-1 overflow-auto p-5 lg:p-8 space-y-5">
-            {!messages.length && !stream ? (
-              <div className="h-full grid place-items-center text-center">
-                <div>
-                  <span className="w-14 h-14 rounded-2xl bg-mint text-brand grid place-items-center mx-auto">
-                    <Bot size={28} />
-                  </span>
-                  <h2 className="font-semibold text-lg mt-4">今天想推进什么？</h2>
-                  <p className="subtle mt-2">试试：“我有哪些正在面试的职位？”</p>
-                </div>
-              </div>
-            ) : (
-              messages.map((m: any) => (
-                <div
-                  key={m.id}
-                  className={`max-w-[80%] rounded-2xl p-4 text-sm whitespace-pre-wrap ${m.role === 'USER' ? 'ml-auto bg-brand text-white' : 'bg-gray-100'}`}
-                >
-                  {m.content}
-                </div>
-              ))
-            )}
-            {stream && (
-              <div className="max-w-[80%] rounded-2xl p-4 text-sm whitespace-pre-wrap bg-gray-100">
-                {stream}
-              </div>
-            )}
-          </div>
+        <div className="flex min-h-0 min-w-0 flex-col">
+          <AgentConversation messages={messages} streamedText={stream} />
           <div className="p-4 border-t border-line">
             <div className="flex gap-2">
               <textarea

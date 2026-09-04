@@ -3,7 +3,7 @@ import type { AgentEventEmitter } from '../core/events';
 import type { Guardrail } from '../guardrails/guardrail';
 import type { AgentTool } from './agent-tool';
 import type { ToolExecutionHooks } from './tool-hooks';
-import type { ToolResult } from './tool-result';
+import { toJsonSafe, type ToolResult } from './tool-result';
 import { ToolRegistry } from './tool-registry';
 
 export class ToolExecutor {
@@ -35,7 +35,7 @@ export class ToolExecutor {
         await guardrail.beforeToolCall?.(call, tool, context);
       const input = tool.schema.parse(call.arguments);
       for (const hook of this.hooks) await hook.beforeToolCall?.({ call, tool, turn });
-      const data = await this.runWithRetry(tool, input, { ...context, signal }, signal);
+      const data = toJsonSafe(await this.runWithRetry(tool, input, { ...context, signal }, signal));
       const result: ToolResult = {
         success: true,
         data,
